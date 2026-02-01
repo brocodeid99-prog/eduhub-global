@@ -113,37 +113,50 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         data: {
           first_name: firstName,
           last_name: lastName,
+          institution,
+          requested_role: role,
         },
       },
     });
 
     if (error) throw error;
 
-    // Update profile with institution
+    // Wait for profile to be created by trigger, then update it
     if (data.user) {
-      const { data: profileData } = await supabase
-        .from("profiles")
-        .select("id")
-        .eq("user_id", data.user.id)
-        .maybeSingle();
+      // Poll for profile creation (trigger is async)
+      let attempts = 0;
+      let profileData = null;
+      
+      while (attempts < 10 && !profileData) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("id")
+          .eq("user_id", data.user.id)
+          .maybeSingle();
+        
+        profileData = profile;
+        attempts++;
+      }
 
       if (profileData) {
+        // Update profile with institution
         await supabase
           .from("profiles")
           .update({ institution })
           .eq("id", profileData.id);
 
-        // Add teacher role if selected
+        // Add teacher role if selected (update existing student role)
         if (role === "teacher") {
-          await supabase.from("user_roles").insert({
-            user_id: data.user.id,
-            role: "teacher",
-          });
+          await supabase
+            .from("user_roles")
+            .update({ role: "teacher" })
+            .eq("user_id", data.user.id);
         }
       }
     }
 
-    toast.success("Registrasi berhasil! Silakan cek email Anda untuk verifikasi.");
+    toast.success("Registrasi berhasil! Silakan login.");
   };
 
   const signIn = async (email: string, password: string) => {
