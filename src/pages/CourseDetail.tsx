@@ -46,6 +46,7 @@ import {
   Users,
   Globe,
   Lock,
+  Pencil,
 } from "lucide-react";
 import { toast } from "sonner";
 import { EnrollStudentDialog } from "@/components/course/EnrollStudentDialog";
@@ -76,6 +77,7 @@ const CourseDetail = () => {
   const queryClient = useQueryClient();
   const [isModuleOpen, setIsModuleOpen] = useState(false);
   const [isMaterialOpen, setIsMaterialOpen] = useState(false);
+  const [isEditCourseOpen, setIsEditCourseOpen] = useState(false);
   const [selectedModuleId, setSelectedModuleId] = useState<string | null>(null);
   const [newModule, setNewModule] = useState({ title: "", description: "" });
   const [newMaterial, setNewMaterial] = useState({
@@ -83,6 +85,7 @@ const CourseDetail = () => {
     type: "text" as MaterialType,
     content: "",
   });
+  const [editCourse, setEditCourse] = useState({ title: "", description: "" });
   const [uploadingFile, setUploadingFile] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
@@ -170,6 +173,30 @@ const CourseDetail = () => {
     },
     onError: (error: any) => {
       toast.error(error.message || "Gagal mengubah status publikasi");
+    },
+  });
+
+  // Update course mutation
+  const updateCourse = useMutation({
+    mutationFn: async (data: { title: string; description: string }) => {
+      const { error } = await supabase
+        .from("courses")
+        .update({ 
+          title: data.title,
+          description: data.description || null,
+        })
+        .eq("id", courseId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["course", courseId] });
+      queryClient.invalidateQueries({ queryKey: ["courses"] });
+      toast.success("Mata kuliah berhasil diperbarui!");
+      setIsEditCourseOpen(false);
+    },
+    onError: (error: any) => {
+      toast.error(error.message || "Gagal memperbarui mata kuliah");
     },
   });
 
@@ -411,6 +438,22 @@ const CourseDetail = () => {
                     Draft
                   </span>
                 )}
+                {canManage && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={() => {
+                      setEditCourse({
+                        title: course.title,
+                        description: course.description || "",
+                      });
+                      setIsEditCourseOpen(true);
+                    }}
+                  >
+                    <Pencil className="w-4 h-4" />
+                  </Button>
+                )}
               </div>
               <p className="text-muted-foreground">
                 {course.owner?.first_name} {course.owner?.last_name}
@@ -444,6 +487,73 @@ const CourseDetail = () => {
             {course.description}
           </p>
         )}
+
+        {/* Edit Course Dialog */}
+        <Dialog open={isEditCourseOpen} onOpenChange={setIsEditCourseOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit Mata Kuliah</DialogTitle>
+            </DialogHeader>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (!editCourse.title.trim()) {
+                  toast.error("Judul mata kuliah wajib diisi");
+                  return;
+                }
+                updateCourse.mutate(editCourse);
+              }}
+              className="space-y-4 mt-4"
+            >
+              <div className="space-y-2">
+                <Label htmlFor="edit-title">Judul Mata Kuliah</Label>
+                <Input
+                  id="edit-title"
+                  placeholder="Contoh: Algoritma & Pemrograman"
+                  value={editCourse.title}
+                  onChange={(e) =>
+                    setEditCourse({ ...editCourse, title: e.target.value })
+                  }
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-description">Deskripsi</Label>
+                <Textarea
+                  id="edit-description"
+                  placeholder="Deskripsi mata kuliah..."
+                  value={editCourse.description}
+                  onChange={(e) =>
+                    setEditCourse({ ...editCourse, description: e.target.value })
+                  }
+                  rows={4}
+                />
+              </div>
+              <div className="flex gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => setIsEditCourseOpen(false)}
+                >
+                  Batal
+                </Button>
+                <Button
+                  type="submit"
+                  variant="hero"
+                  className="flex-1"
+                  disabled={updateCourse.isPending}
+                >
+                  {updateCourse.isPending ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    "Simpan Perubahan"
+                  )}
+                </Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
 
         {/* Tabs for Modules and Students */}
         <Tabs defaultValue="modules" className="space-y-6">
