@@ -294,8 +294,10 @@ const Courses = () => {
                       </Link>
                     </Button>
                   ) : isEnrolled(course.id) ? (
-                    <Button variant="success" className="w-full" disabled>
-                      Sudah Terdaftar
+                    <Button variant="success" className="w-full" asChild>
+                      <Link to={`/dashboard/courses/${course.id}`}>
+                        Akses Materi
+                      </Link>
                     </Button>
                   ) : (
                     <Button
