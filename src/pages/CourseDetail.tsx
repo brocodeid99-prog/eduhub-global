@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
   DialogContent,
@@ -41,8 +42,11 @@ import {
   Eye,
   Download,
   GripVertical,
+  Users,
 } from "lucide-react";
 import { toast } from "sonner";
+import { EnrollStudentDialog } from "@/components/course/EnrollStudentDialog";
+import { EnrolledStudentsList } from "@/components/course/EnrolledStudentsList";
 
 type MaterialType = "text" | "video" | "pdf" | "document";
 
@@ -113,6 +117,35 @@ const CourseDetail = () => {
     },
     enabled: !!courseId,
   });
+
+  // Fetch enrolled students
+  const { data: enrollments, isLoading: enrollmentsLoading } = useQuery({
+    queryKey: ["course-enrollments", courseId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("enrollments")
+        .select(`
+          id,
+          enrolled_at,
+          student:profiles!enrollments_student_id_fkey(
+            id,
+            first_name,
+            last_name,
+            avatar_url,
+            institution
+          )
+        `)
+        .eq("course_id", courseId)
+        .eq("status", "active")
+        .order("enrolled_at", { ascending: false });
+
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!courseId,
+  });
+
+  const enrolledStudentIds = enrollments?.map((e: any) => e.student?.id).filter(Boolean) || [];
 
   const isOwner = course?.owner_id === profile?.id;
   const canManage = isOwner || isAdmin;
@@ -354,312 +387,349 @@ const CourseDetail = () => {
           </p>
         )}
 
-        {/* Modules Section */}
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-semibold text-foreground">Modul Pembelajaran</h2>
-          {canManage && (
-            <Dialog open={isModuleOpen} onOpenChange={setIsModuleOpen}>
-              <DialogTrigger asChild>
-                <Button variant="hero">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Tambah Modul
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
+        {/* Tabs for Modules and Students */}
+        <Tabs defaultValue="modules" className="space-y-6">
+          <TabsList>
+            <TabsTrigger value="modules">
+              <BookOpen className="w-4 h-4 mr-2" />
+              Modul
+            </TabsTrigger>
+            <TabsTrigger value="students">
+              <Users className="w-4 h-4 mr-2" />
+              Mahasiswa ({enrollments?.length || 0})
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="modules">
+            {/* Modules Section */}
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-semibold text-foreground">Modul Pembelajaran</h2>
+              {canManage && (
+                <Dialog open={isModuleOpen} onOpenChange={setIsModuleOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="hero">
+                      <Plus className="w-4 h-4 mr-2" />
+                      Tambah Modul
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Tambah Modul Baru</DialogTitle>
+                    </DialogHeader>
+                    <form onSubmit={handleCreateModule} className="space-y-4 mt-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="module-title">Judul Modul</Label>
+                        <Input
+                          id="module-title"
+                          placeholder="Contoh: Pengenalan Algoritma"
+                          value={newModule.title}
+                          onChange={(e) =>
+                            setNewModule({ ...newModule, title: e.target.value })
+                          }
+                          required
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="module-desc">Deskripsi</Label>
+                        <Textarea
+                          id="module-desc"
+                          placeholder="Deskripsi modul..."
+                          value={newModule.description}
+                          onChange={(e) =>
+                            setNewModule({ ...newModule, description: e.target.value })
+                          }
+                          rows={3}
+                        />
+                      </div>
+                      <Button
+                        type="submit"
+                        variant="hero"
+                        className="w-full"
+                        disabled={createModule.isPending}
+                      >
+                        {createModule.isPending ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          "Buat Modul"
+                        )}
+                      </Button>
+                    </form>
+                  </DialogContent>
+                </Dialog>
+              )}
+            </div>
+
+            {/* Material Dialog */}
+            <Dialog open={isMaterialOpen} onOpenChange={setIsMaterialOpen}>
+              <DialogContent className="max-w-lg">
                 <DialogHeader>
-                  <DialogTitle>Tambah Modul Baru</DialogTitle>
+                  <DialogTitle>Tambah Materi</DialogTitle>
                 </DialogHeader>
-                <form onSubmit={handleCreateModule} className="space-y-4 mt-4">
+                <form onSubmit={handleCreateMaterial} className="space-y-4 mt-4">
                   <div className="space-y-2">
-                    <Label htmlFor="module-title">Judul Modul</Label>
+                    <Label htmlFor="material-title">Judul Materi</Label>
                     <Input
-                      id="module-title"
-                      placeholder="Contoh: Pengenalan Algoritma"
-                      value={newModule.title}
+                      id="material-title"
+                      placeholder="Contoh: Video Pengantar"
+                      value={newMaterial.title}
                       onChange={(e) =>
-                        setNewModule({ ...newModule, title: e.target.value })
+                        setNewMaterial({ ...newMaterial, title: e.target.value })
                       }
                       required
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="module-desc">Deskripsi</Label>
-                    <Textarea
-                      id="module-desc"
-                      placeholder="Deskripsi modul..."
-                      value={newModule.description}
-                      onChange={(e) =>
-                        setNewModule({ ...newModule, description: e.target.value })
+                    <Label>Tipe Materi</Label>
+                    <Select
+                      value={newMaterial.type}
+                      onValueChange={(value: MaterialType) =>
+                        setNewMaterial({ ...newMaterial, type: value })
                       }
-                      rows={3}
-                    />
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="text">Teks / Artikel</SelectItem>
+                        <SelectItem value="video">Video</SelectItem>
+                        <SelectItem value="pdf">PDF</SelectItem>
+                        <SelectItem value="document">Dokumen (Word/PPT)</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
+
+                  {newMaterial.type === "text" ? (
+                    <div className="space-y-2">
+                      <Label htmlFor="material-content">Konten</Label>
+                      <Textarea
+                        id="material-content"
+                        placeholder="Tulis konten materi di sini..."
+                        value={newMaterial.content}
+                        onChange={(e) =>
+                          setNewMaterial({ ...newMaterial, content: e.target.value })
+                        }
+                        rows={6}
+                      />
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <Label>Upload File</Label>
+                      <div className="border-2 border-dashed border-border rounded-lg p-6 text-center">
+                        {selectedFile ? (
+                          <div className="flex items-center justify-center gap-2">
+                            {getMaterialIcon(newMaterial.type)}
+                            <span className="text-sm text-foreground">
+                              {selectedFile.name}
+                            </span>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setSelectedFile(null)}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <>
+                            <Upload className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
+                            <p className="text-sm text-muted-foreground mb-2">
+                              Klik atau drag file ke sini
+                            </p>
+                            <Input
+                              type="file"
+                              accept={getAcceptedFileTypes(newMaterial.type)}
+                              onChange={(e) =>
+                                setSelectedFile(e.target.files?.[0] || null)
+                              }
+                              className="cursor-pointer"
+                            />
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
                   <Button
                     type="submit"
                     variant="hero"
                     className="w-full"
-                    disabled={createModule.isPending}
+                    disabled={createMaterial.isPending || uploadingFile}
                   >
-                    {createModule.isPending ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
+                    {createMaterial.isPending || uploadingFile ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                        {uploadingFile ? "Mengupload..." : "Menyimpan..."}
+                      </>
                     ) : (
-                      "Buat Modul"
+                      "Simpan Materi"
                     )}
                   </Button>
                 </form>
               </DialogContent>
             </Dialog>
-          )}
-        </div>
 
-        {/* Material Dialog */}
-        <Dialog open={isMaterialOpen} onOpenChange={setIsMaterialOpen}>
-          <DialogContent className="max-w-lg">
-            <DialogHeader>
-              <DialogTitle>Tambah Materi</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleCreateMaterial} className="space-y-4 mt-4">
-              <div className="space-y-2">
-                <Label htmlFor="material-title">Judul Materi</Label>
-                <Input
-                  id="material-title"
-                  placeholder="Contoh: Video Pengantar"
-                  value={newMaterial.title}
-                  onChange={(e) =>
-                    setNewMaterial({ ...newMaterial, title: e.target.value })
-                  }
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Tipe Materi</Label>
-                <Select
-                  value={newMaterial.type}
-                  onValueChange={(value: MaterialType) =>
-                    setNewMaterial({ ...newMaterial, type: value })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="text">Teks / Artikel</SelectItem>
-                    <SelectItem value="video">Video</SelectItem>
-                    <SelectItem value="pdf">PDF</SelectItem>
-                    <SelectItem value="document">Dokumen (Word/PPT)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {newMaterial.type === "text" ? (
-                <div className="space-y-2">
-                  <Label htmlFor="material-content">Konten</Label>
-                  <Textarea
-                    id="material-content"
-                    placeholder="Tulis konten materi di sini..."
-                    value={newMaterial.content}
-                    onChange={(e) =>
-                      setNewMaterial({ ...newMaterial, content: e.target.value })
-                    }
-                    rows={6}
-                  />
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  <Label>Upload File</Label>
-                  <div className="border-2 border-dashed border-border rounded-lg p-6 text-center">
-                    {selectedFile ? (
-                      <div className="flex items-center justify-center gap-2">
-                        {getMaterialIcon(newMaterial.type)}
-                        <span className="text-sm text-foreground">
-                          {selectedFile.name}
+            {/* Modules List */}
+            {modules && modules.length > 0 ? (
+              <Accordion type="multiple" className="space-y-4">
+                {modules.map((module, index) => (
+                  <AccordionItem
+                    key={module.id}
+                    value={module.id}
+                    className="border border-border rounded-xl overflow-hidden bg-card"
+                  >
+                    <AccordionTrigger className="px-6 py-4 hover:no-underline hover:bg-muted/50">
+                      <div className="flex items-center gap-4">
+                        {canManage && (
+                          <GripVertical className="w-4 h-4 text-muted-foreground" />
+                        )}
+                        <span className="bg-primary/10 text-primary text-sm font-medium px-2 py-1 rounded">
+                          Modul {index + 1}
                         </span>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setSelectedFile(null)}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
+                        <span className="font-semibold text-foreground">
+                          {module.title}
+                        </span>
                       </div>
-                    ) : (
-                      <>
-                        <Upload className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
-                        <p className="text-sm text-muted-foreground mb-2">
-                          Klik atau drag file ke sini
+                    </AccordionTrigger>
+                    <AccordionContent className="px-6 pb-4">
+                      {module.description && (
+                        <p className="text-muted-foreground text-sm mb-4">
+                          {module.description}
                         </p>
-                        <Input
-                          type="file"
-                          accept={getAcceptedFileTypes(newMaterial.type)}
-                          onChange={(e) =>
-                            setSelectedFile(e.target.files?.[0] || null)
-                          }
-                          className="cursor-pointer"
-                        />
-                      </>
-                    )}
-                  </div>
-                </div>
-              )}
+                      )}
 
-              <Button
-                type="submit"
-                variant="hero"
-                className="w-full"
-                disabled={createMaterial.isPending || uploadingFile}
-              >
-                {createMaterial.isPending || uploadingFile ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                    {uploadingFile ? "Mengupload..." : "Menyimpan..."}
-                  </>
-                ) : (
-                  "Simpan Materi"
-                )}
-              </Button>
-            </form>
-          </DialogContent>
-        </Dialog>
-
-        {/* Modules List */}
-        {modules && modules.length > 0 ? (
-          <Accordion type="multiple" className="space-y-4">
-            {modules.map((module, index) => (
-              <AccordionItem
-                key={module.id}
-                value={module.id}
-                className="border border-border rounded-xl overflow-hidden bg-card"
-              >
-                <AccordionTrigger className="px-6 py-4 hover:no-underline hover:bg-muted/50">
-                  <div className="flex items-center gap-4">
-                    {canManage && (
-                      <GripVertical className="w-4 h-4 text-muted-foreground" />
-                    )}
-                    <span className="bg-primary/10 text-primary text-sm font-medium px-2 py-1 rounded">
-                      Modul {index + 1}
-                    </span>
-                    <span className="font-semibold text-foreground">
-                      {module.title}
-                    </span>
-                  </div>
-                </AccordionTrigger>
-                <AccordionContent className="px-6 pb-4">
-                  {module.description && (
-                    <p className="text-muted-foreground text-sm mb-4">
-                      {module.description}
-                    </p>
-                  )}
-
-                  {/* Materials List */}
-                  <div className="space-y-2 mb-4">
-                    {module.materials && module.materials.length > 0 ? (
-                      module.materials.map((material) => (
-                        <div
-                          key={material.id}
-                          className="flex items-center justify-between p-3 bg-muted/50 rounded-lg"
-                        >
-                          <div className="flex items-center gap-3">
-                            {getMaterialIcon(material.material_type)}
-                            <span className="text-sm font-medium text-foreground">
-                              {material.title}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            {material.file_url && (
-                              <>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  asChild
-                                >
-                                  <a
-                                    href={material.file_url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
+                      {/* Materials List */}
+                      <div className="space-y-2 mb-4">
+                        {module.materials && module.materials.length > 0 ? (
+                          module.materials.map((material) => (
+                            <div
+                              key={material.id}
+                              className="flex items-center justify-between p-3 bg-muted/50 rounded-lg"
+                            >
+                              <div className="flex items-center gap-3">
+                                {getMaterialIcon(material.material_type)}
+                                <span className="text-sm font-medium text-foreground">
+                                  {material.title}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                {material.file_url && (
+                                  <>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      asChild
+                                    >
+                                      <a
+                                        href={material.file_url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                      >
+                                        <Eye className="w-4 h-4" />
+                                      </a>
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      asChild
+                                    >
+                                      <a
+                                        href={material.file_url}
+                                        download
+                                      >
+                                        <Download className="w-4 h-4" />
+                                      </a>
+                                    </Button>
+                                  </>
+                                )}
+                                {canManage && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => deleteMaterial.mutate(material)}
+                                    disabled={deleteMaterial.isPending}
                                   >
-                                    <Eye className="w-4 h-4" />
-                                  </a>
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  asChild
-                                >
-                                  <a
-                                    href={material.file_url}
-                                    download
-                                  >
-                                    <Download className="w-4 h-4" />
-                                  </a>
-                                </Button>
-                              </>
-                            )}
-                            {canManage && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => deleteMaterial.mutate(material)}
-                                disabled={deleteMaterial.isPending}
-                              >
-                                <Trash2 className="w-4 h-4 text-destructive" />
-                              </Button>
-                            )}
-                          </div>
+                                    <Trash2 className="w-4 h-4 text-destructive" />
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
+                          ))
+                        ) : (
+                          <p className="text-sm text-muted-foreground py-2">
+                            Belum ada materi
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Module Actions */}
+                      {canManage && (
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setSelectedModuleId(module.id);
+                              setIsMaterialOpen(true);
+                            }}
+                          >
+                            <Plus className="w-4 h-4 mr-1" />
+                            Tambah Materi
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              if (confirm("Hapus modul ini beserta semua materinya?")) {
+                                deleteModule.mutate(module.id);
+                              }
+                            }}
+                            disabled={deleteModule.isPending}
+                          >
+                            <Trash2 className="w-4 h-4 text-destructive" />
+                          </Button>
                         </div>
-                      ))
-                    ) : (
-                      <p className="text-sm text-muted-foreground py-2">
-                        Belum ada materi
-                      </p>
-                    )}
-                  </div>
+                      )}
+                    </AccordionContent>
+                  </AccordionItem>
+                ))}
+              </Accordion>
+            ) : (
+              <div className="text-center py-16 bg-card rounded-xl border border-border">
+                <BookOpen className="w-16 h-16 mx-auto text-muted-foreground/50 mb-4" />
+                <h3 className="text-lg font-medium text-foreground mb-2">
+                  Belum ada modul
+                </h3>
+                <p className="text-muted-foreground">
+                  {canManage
+                    ? "Mulai dengan membuat modul pertama"
+                    : "Modul pembelajaran akan muncul di sini"}
+                </p>
+              </div>
+            )}
+          </TabsContent>
 
-                  {/* Module Actions */}
-                  {canManage && (
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setSelectedModuleId(module.id);
-                          setIsMaterialOpen(true);
-                        }}
-                      >
-                        <Plus className="w-4 h-4 mr-1" />
-                        Tambah Materi
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          if (confirm("Hapus modul ini beserta semua materinya?")) {
-                            deleteModule.mutate(module.id);
-                          }
-                        }}
-                        disabled={deleteModule.isPending}
-                      >
-                        <Trash2 className="w-4 h-4 text-destructive" />
-                      </Button>
-                    </div>
-                  )}
-                </AccordionContent>
-              </AccordionItem>
-            ))}
-          </Accordion>
-        ) : (
-          <div className="text-center py-16 bg-card rounded-xl border border-border">
-            <BookOpen className="w-16 h-16 mx-auto text-muted-foreground/50 mb-4" />
-            <h3 className="text-lg font-medium text-foreground mb-2">
-              Belum ada modul
-            </h3>
-            <p className="text-muted-foreground">
-              {canManage
-                ? "Mulai dengan membuat modul pertama"
-                : "Modul pembelajaran akan muncul di sini"}
-            </p>
-          </div>
-        )}
+          <TabsContent value="students">
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-semibold text-foreground">Mahasiswa Terdaftar</h2>
+                {canManage && (
+                  <EnrollStudentDialog
+                    courseId={courseId!}
+                    enrolledStudentIds={enrolledStudentIds}
+                  />
+                )}
+              </div>
+
+              <EnrolledStudentsList
+                courseId={courseId!}
+                enrollments={enrollments as any}
+                canManage={canManage}
+                isLoading={enrollmentsLoading}
+              />
+            </div>
+          </TabsContent>
+        </Tabs>
       </main>
     </div>
   );
