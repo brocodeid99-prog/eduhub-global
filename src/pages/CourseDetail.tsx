@@ -29,6 +29,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { Switch } from "@/components/ui/switch";
 import {
   ArrowLeft,
   Plus,
@@ -43,6 +44,8 @@ import {
   Download,
   GripVertical,
   Users,
+  Globe,
+  Lock,
 } from "lucide-react";
 import { toast } from "sonner";
 import { EnrollStudentDialog } from "@/components/course/EnrollStudentDialog";
@@ -149,6 +152,26 @@ const CourseDetail = () => {
 
   const isOwner = course?.owner_id === profile?.id;
   const canManage = isOwner || isAdmin;
+
+  // Toggle publish mutation
+  const togglePublish = useMutation({
+    mutationFn: async (isPublished: boolean) => {
+      const { error } = await supabase
+        .from("courses")
+        .update({ is_published: isPublished })
+        .eq("id", courseId);
+
+      if (error) throw error;
+    },
+    onSuccess: (_, isPublished) => {
+      queryClient.invalidateQueries({ queryKey: ["course", courseId] });
+      queryClient.invalidateQueries({ queryKey: ["courses"] });
+      toast.success(isPublished ? "Mata kuliah dipublikasikan!" : "Mata kuliah di-unpublish!");
+    },
+    onError: (error: any) => {
+      toast.error(error.message || "Gagal mengubah status publikasi");
+    },
+  });
 
   // Create module mutation
   const createModule = useMutation({
@@ -367,18 +390,53 @@ const CourseDetail = () => {
 
       <main className="ml-64 p-8">
         {/* Header */}
-        <div className="flex items-center gap-4 mb-6">
-          <Button variant="ghost" size="icon" asChild>
-            <Link to="/dashboard/courses">
-              <ArrowLeft className="w-5 h-5" />
-            </Link>
-          </Button>
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">{course.title}</h1>
-            <p className="text-muted-foreground">
-              {course.owner?.first_name} {course.owner?.last_name}
-            </p>
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-4">
+            <Button variant="ghost" size="icon" asChild>
+              <Link to="/dashboard/courses">
+                <ArrowLeft className="w-5 h-5" />
+              </Link>
+            </Button>
+            <div>
+              <div className="flex items-center gap-3">
+                <h1 className="text-2xl font-bold text-foreground">{course.title}</h1>
+                {course.is_published ? (
+                  <span className="inline-flex items-center gap-1 text-xs bg-success/10 text-success px-2 py-1 rounded-full">
+                    <Globe className="w-3 h-3" />
+                    Dipublikasikan
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 text-xs bg-muted text-muted-foreground px-2 py-1 rounded-full">
+                    <Lock className="w-3 h-3" />
+                    Draft
+                  </span>
+                )}
+              </div>
+              <p className="text-muted-foreground">
+                {course.owner?.first_name} {course.owner?.last_name}
+              </p>
+            </div>
           </div>
+          
+          {canManage && (
+            <div className="flex items-center gap-3 bg-card border border-border rounded-lg px-4 py-2">
+              <div className="flex items-center gap-2">
+                {course.is_published ? (
+                  <Globe className="w-4 h-4 text-success" />
+                ) : (
+                  <Lock className="w-4 h-4 text-muted-foreground" />
+                )}
+                <span className="text-sm font-medium">
+                  {course.is_published ? "Publik" : "Draft"}
+                </span>
+              </div>
+              <Switch
+                checked={course.is_published || false}
+                onCheckedChange={(checked) => togglePublish.mutate(checked)}
+                disabled={togglePublish.isPending}
+              />
+            </div>
+          )}
         </div>
 
         {course.description && (
