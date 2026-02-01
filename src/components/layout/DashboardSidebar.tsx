@@ -1,0 +1,169 @@
+import {
+  BookOpen,
+  LayoutDashboard,
+  FileText,
+  Users,
+  Settings,
+  LogOut,
+  GraduationCap,
+  ClipboardList,
+  BarChart3,
+  Calendar,
+} from "lucide-react";
+import { Link, useLocation } from "react-router-dom";
+import { cn } from "@/lib/utils";
+
+interface SidebarLink {
+  name: string;
+  path: string;
+  icon: React.ReactNode;
+  badge?: number;
+}
+
+const DashboardSidebar = () => {
+  const location = useLocation();
+
+  const mainLinks: SidebarLink[] = [
+    {
+      name: "Dashboard",
+      path: "/dashboard",
+      icon: <LayoutDashboard className="w-5 h-5" />,
+    },
+    {
+      name: "Mata Kuliah",
+      path: "/dashboard/courses",
+      icon: <BookOpen className="w-5 h-5" />,
+      badge: 8,
+    },
+    {
+      name: "Ujian CBT",
+      path: "/dashboard/exams",
+      icon: <ClipboardList className="w-5 h-5" />,
+      badge: 2,
+    },
+    {
+      name: "Tugas",
+      path: "/dashboard/assignments",
+      icon: <FileText className="w-5 h-5" />,
+      badge: 5,
+    },
+    {
+      name: "Jadwal",
+      path: "/dashboard/schedule",
+      icon: <Calendar className="w-5 h-5" />,
+    },
+    {
+      name: "Nilai",
+      path: "/dashboard/grades",
+      icon: <BarChart3 className="w-5 h-5" />,
+    },
+  ];
+
+  const secondaryLinks: SidebarLink[] = [
+    {
+      name: "Mahasiswa",
+      path: "/dashboard/students",
+      icon: <Users className="w-5 h-5" />,
+    },
+    {
+      name: "Pengaturan",
+      path: "/dashboard/settings",
+      icon: <Settings className="w-5 h-5" />,
+    },
+  ];
+
+  const NavLink = ({ link }: { link: SidebarLink }) => {
+    const isActive = location.pathname === link.path;
+
+    return (
+      <Link
+        to={link.path}
+        className={cn(
+          "flex items-center justify-between px-4 py-3 rounded-lg transition-all duration-200",
+          isActive
+            ? "bg-sidebar-primary text-sidebar-primary-foreground"
+            : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+        )}
+      >
+        <div className="flex items-center gap-3">
+          {link.icon}
+          <span className="font-medium">{link.name}</span>
+        </div>
+        {link.badge && (
+          <span
+            className={cn(
+              "text-xs font-semibold px-2 py-0.5 rounded-full",
+              isActive
+                ? "bg-sidebar-primary-foreground/20 text-sidebar-primary-foreground"
+                : "bg-sidebar-primary/20 text-sidebar-primary"
+            )}
+          >
+            {link.badge}
+          </span>
+        )}
+      </Link>
+    );
+  };
+
+  return (
+    <aside className="w-64 bg-sidebar h-screen fixed left-0 top-0 flex flex-col">
+      {/* Logo */}
+      <div className="p-6 border-b border-sidebar-border">
+        <Link to="/dashboard" className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-sidebar-primary rounded-lg flex items-center justify-center">
+            <GraduationCap className="w-6 h-6 text-sidebar-primary-foreground" />
+          </div>
+          <div>
+            <span className="text-lg font-bold text-sidebar-foreground">
+              EduLearn
+            </span>
+            <p className="text-xs text-sidebar-foreground/60">
+              Learning Platform
+            </p>
+          </div>
+        </Link>
+      </div>
+
+      {/* Main Navigation */}
+      <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+        <p className="text-xs font-semibold text-sidebar-foreground/40 uppercase tracking-wider px-4 mb-3">
+          Menu Utama
+        </p>
+        {mainLinks.map((link) => (
+          <NavLink key={link.path} link={link} />
+        ))}
+
+        <div className="pt-6">
+          <p className="text-xs font-semibold text-sidebar-foreground/40 uppercase tracking-wider px-4 mb-3">
+            Lainnya
+          </p>
+          {secondaryLinks.map((link) => (
+            <NavLink key={link.path} link={link} />
+          ))}
+        </div>
+      </nav>
+
+      {/* User Section */}
+      <div className="p-4 border-t border-sidebar-border">
+        <div className="flex items-center gap-3 px-4 py-3">
+          <div className="w-10 h-10 rounded-full bg-sidebar-primary/20 flex items-center justify-center">
+            <span className="text-sm font-semibold text-sidebar-primary">
+              AS
+            </span>
+          </div>
+          <div className="flex-1">
+            <p className="text-sm font-medium text-sidebar-foreground">
+              Ahmad Santoso
+            </p>
+            <p className="text-xs text-sidebar-foreground/60">Mahasiswa</p>
+          </div>
+          <button className="p-2 rounded-lg hover:bg-sidebar-accent transition-colors">
+            <LogOut className="w-4 h-4 text-sidebar-foreground/60" />
+          </button>
+        </div>
+      </div>
+    </aside>
+  );
+};
+
+export default DashboardSidebar;
