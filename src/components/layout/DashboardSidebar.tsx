@@ -9,6 +9,7 @@ import {
   BarChart3,
   Calendar,
   PlusCircle,
+  Shield,
 } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
@@ -21,6 +22,7 @@ interface SidebarLink {
   icon: React.ReactNode;
   badge?: number;
   teacherOnly?: boolean;
+  adminOnly?: boolean;
 }
 
 const DashboardSidebar = () => {
@@ -81,6 +83,15 @@ const DashboardSidebar = () => {
     },
   ];
 
+  const adminLinks: SidebarLink[] = [
+    {
+      name: "Dashboard Admin",
+      path: "/dashboard/admin",
+      icon: <Shield className="w-5 h-5" />,
+      adminOnly: true,
+    },
+  ];
+
   const secondaryLinks: SidebarLink[] = [
     {
       name: "Mahasiswa",
@@ -99,6 +110,7 @@ const DashboardSidebar = () => {
     const isActive = location.pathname === link.path;
 
     if (link.teacherOnly && !isTeacher && !isAdmin) return null;
+    if (link.adminOnly && !isAdmin) return null;
 
     return (
       <Link
@@ -160,6 +172,17 @@ const DashboardSidebar = () => {
               Kelola
             </p>
             {teacherLinks.map((link) => (
+              <NavLink key={link.path} link={link} />
+            ))}
+          </div>
+        )}
+
+        {isAdmin && (
+          <div className="pt-6">
+            <p className="text-xs font-semibold text-sidebar-foreground/40 uppercase tracking-wider px-4 mb-3">
+              Admin
+            </p>
+            {adminLinks.map((link) => (
               <NavLink key={link.path} link={link} />
             ))}
           </div>

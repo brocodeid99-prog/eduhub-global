@@ -15,6 +15,7 @@ import ExamList from "./pages/ExamList";
 import Exam from "./pages/Exam";
 import ExamQuestions from "./pages/ExamQuestions";
 import CreateExam from "./pages/CreateExam";
+import AdminDashboard from "./pages/AdminDashboard";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -83,6 +84,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <CreateExam />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/dashboard/admin"
+              element={
+                <ProtectedRoute>
+                  <AdminDashboard />
                 </ProtectedRoute>
               }
             />
