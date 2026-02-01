@@ -1,5 +1,6 @@
-import { BookOpen, Facebook, Instagram, Twitter, Youtube } from "lucide-react";
+import { Facebook, Instagram, Twitter, Youtube } from "lucide-react";
 import { Link } from "react-router-dom";
+import logoImage from "@/assets/logo-brocode.jpeg";
 
 const Footer = () => {
   const footerLinks = {
@@ -42,10 +43,7 @@ const Footer = () => {
           {/* Brand */}
           <div className="lg:col-span-2">
             <Link to="/" className="flex items-center gap-2 mb-4">
-              <div className="w-10 h-10 bg-sidebar-primary rounded-lg flex items-center justify-center">
-                <BookOpen className="w-6 h-6 text-sidebar-primary-foreground" />
-              </div>
-              <span className="text-xl font-bold">EduLearn</span>
+              <img src={logoImage} alt="BroCodeID Logo" className="h-10 w-auto" />
             </Link>
             <p className="text-sidebar-foreground/70 text-sm mb-6 max-w-xs">
               Platform LMS dan CBT terdepan untuk SMK dan Universitas di
@@ -133,7 +131,7 @@ const Footer = () => {
         {/* Bottom */}
         <div className="pt-8 border-t border-sidebar-border flex flex-col md:flex-row justify-between items-center gap-4">
           <p className="text-sm text-sidebar-foreground/60">
-            © 2025 EduLearn. Hak cipta dilindungi.
+            © 2026 BroCodeID. Hak cipta dilindungi.
           </p>
           <p className="text-sm text-sidebar-foreground/60">
             Dibuat dengan ❤️ di Indonesia
