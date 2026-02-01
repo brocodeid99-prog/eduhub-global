@@ -1,13 +1,23 @@
-import { BookOpen, Eye, EyeOff, CheckCircle } from "lucide-react";
+import { BookOpen, Eye, EyeOff, CheckCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
+import { toast } from "sonner";
 
 const Register = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [role, setRole] = useState<"student" | "teacher">("student");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [email, setEmail] = useState("");
+  const [institution, setInstitution] = useState("");
+  const [password, setPassword] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const { signUp } = useAuth();
+  const navigate = useNavigate();
 
   const benefits = [
     "Akses ke 500+ mata kuliah",
@@ -15,6 +25,20 @@ const Register = () => {
     "Sertifikat digital resmi",
     "Komunitas belajar aktif",
   ];
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+
+    try {
+      await signUp(email, password, firstName, lastName, institution, role);
+      navigate("/login");
+    } catch (error: any) {
+      toast.error(error.message || "Registrasi gagal");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen flex">
@@ -99,15 +123,29 @@ const Register = () => {
           </div>
 
           {/* Form */}
-          <form className="space-y-4">
+          <form className="space-y-4" onSubmit={handleSubmit}>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="firstName">Nama Depan</Label>
-                <Input id="firstName" placeholder="John" className="h-11" />
+                <Input
+                  id="firstName"
+                  placeholder="John"
+                  className="h-11"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  required
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="lastName">Nama Belakang</Label>
-                <Input id="lastName" placeholder="Doe" className="h-11" />
+                <Input
+                  id="lastName"
+                  placeholder="Doe"
+                  className="h-11"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  required
+                />
               </div>
             </div>
 
@@ -118,6 +156,9 @@ const Register = () => {
                 type="email"
                 placeholder="nama@email.com"
                 className="h-11"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
               />
             </div>
 
@@ -127,6 +168,8 @@ const Register = () => {
                 id="institution"
                 placeholder="Nama SMK atau Universitas"
                 className="h-11"
+                value={institution}
+                onChange={(e) => setInstitution(e.target.value)}
               />
             </div>
 
@@ -136,8 +179,12 @@ const Register = () => {
                 <Input
                   id="password"
                   type={showPassword ? "text" : "password"}
-                  placeholder="Minimal 8 karakter"
+                  placeholder="Minimal 6 karakter"
                   className="h-11 pr-12"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  minLength={6}
                 />
                 <button
                   type="button"
@@ -165,15 +212,28 @@ const Register = () => {
               kami.
             </p>
 
-            <Button variant="hero" size="lg" className="w-full" asChild>
-              <Link to="/dashboard">Daftar Sekarang</Link>
+            <Button
+              variant="hero"
+              size="lg"
+              className="w-full"
+              type="submit"
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                "Daftar Sekarang"
+              )}
             </Button>
           </form>
 
           {/* Login Link */}
           <p className="text-center text-sm text-muted-foreground mt-8">
             Sudah punya akun?{" "}
-            <Link to="/login" className="text-primary font-medium hover:underline">
+            <Link
+              to="/login"
+              className="text-primary font-medium hover:underline"
+            >
               Masuk di sini
             </Link>
           </p>
