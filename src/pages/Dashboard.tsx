@@ -7,6 +7,7 @@ import {
   ChevronRight,
   Play,
   Loader2,
+  Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
@@ -76,36 +77,107 @@ const Dashboard = () => {
     enabled: !!profile?.id && isTeacher,
   });
 
-  const stats = [
-    {
-      label: isTeacher ? "Mata Kuliah Dibuat" : "Mata Kuliah Aktif",
-      value: isTeacher ? teacherCourses?.length || 0 : enrollments?.length || 0,
-      change: isTeacher ? "Klik untuk mengelola" : "+2 bulan ini",
-      icon: <BookOpen className="w-5 h-5" />,
-      color: "bg-primary/10 text-primary",
+  // Fetch grades for average calculation (students only)
+  const { data: grades } = useQuery({
+    queryKey: ["student-grades", profile?.id],
+    queryFn: async () => {
+      if (!profile?.id) return [];
+      const { data, error } = await supabase
+        .from("grades")
+        .select(`
+          *,
+          enrollment:enrollments!inner(student_id)
+        `)
+        .eq("enrollment.student_id", profile.id);
+
+      if (error) throw error;
+      return data;
     },
-    {
-      label: "Tugas Pending",
-      value: "5",
-      change: "3 deadline minggu ini",
-      icon: <Clock className="w-5 h-5" />,
-      color: "bg-warning/10 text-warning",
+    enabled: !!profile?.id && !isTeacher,
+  });
+
+  // Fetch total enrolled students for teacher
+  const { data: totalStudents } = useQuery({
+    queryKey: ["total-students", profile?.id],
+    queryFn: async () => {
+      if (!profile?.id) return 0;
+      const { count, error } = await supabase
+        .from("enrollments")
+        .select("id, course:courses!inner(owner_id)", { count: "exact", head: true })
+        .eq("course.owner_id", profile.id);
+
+      if (error) throw error;
+      return count || 0;
     },
-    {
-      label: "Rata-rata Nilai",
-      value: "85.5",
-      change: "+5.2 dari semester lalu",
-      icon: <TrendingUp className="w-5 h-5" />,
-      color: "bg-success/10 text-success",
-    },
-    {
-      label: "Ujian Mendatang",
-      value: upcomingExams?.length || 0,
-      change: "Lihat jadwal",
-      icon: <Calendar className="w-5 h-5" />,
-      color: "bg-info/10 text-info",
-    },
-  ];
+    enabled: !!profile?.id && isTeacher,
+  });
+
+  // Calculate average grade
+  const averageGrade = grades && grades.length > 0
+    ? (grades.reduce((sum: number, g: any) => sum + (g.final_score || 0), 0) / grades.length).toFixed(1)
+    : "-";
+
+  const stats = isTeacher
+    ? [
+        {
+          label: "Mata Kuliah Dibuat",
+          value: teacherCourses?.length || 0,
+          change: "Klik untuk mengelola",
+          icon: <BookOpen className="w-5 h-5" />,
+          color: "bg-primary/10 text-primary",
+        },
+        {
+          label: "Total Mahasiswa",
+          value: totalStudents || 0,
+          change: "Terdaftar di kursus Anda",
+          icon: <Users className="w-5 h-5" />,
+          color: "bg-warning/10 text-warning",
+        },
+        {
+          label: "Ujian Dibuat",
+          value: upcomingExams?.length || 0,
+          change: "Ujian aktif",
+          icon: <TrendingUp className="w-5 h-5" />,
+          color: "bg-success/10 text-success",
+        },
+        {
+          label: "Jadwal Mendatang",
+          value: upcomingExams?.length || 0,
+          change: "Lihat jadwal",
+          icon: <Calendar className="w-5 h-5" />,
+          color: "bg-info/10 text-info",
+        },
+      ]
+    : [
+        {
+          label: "Mata Kuliah Aktif",
+          value: enrollments?.length || 0,
+          change: "Kursus yang diikuti",
+          icon: <BookOpen className="w-5 h-5" />,
+          color: "bg-primary/10 text-primary",
+        },
+        {
+          label: "Ujian Selesai",
+          value: grades?.length || 0,
+          change: "Total ujian",
+          icon: <Clock className="w-5 h-5" />,
+          color: "bg-warning/10 text-warning",
+        },
+        {
+          label: "Rata-rata Nilai",
+          value: averageGrade,
+          change: grades && grades.length > 0 ? "Berdasarkan nilai akhir" : "Belum ada nilai",
+          icon: <TrendingUp className="w-5 h-5" />,
+          color: "bg-success/10 text-success",
+        },
+        {
+          label: "Ujian Mendatang",
+          value: upcomingExams?.length || 0,
+          change: "Lihat jadwal",
+          icon: <Calendar className="w-5 h-5" />,
+          color: "bg-info/10 text-info",
+        },
+      ];
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("id-ID", {
