@@ -9,19 +9,29 @@ import {
   ClipboardList,
   BarChart3,
   Calendar,
+  PlusCircle,
 } from "lucide-react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/useAuth";
 
 interface SidebarLink {
   name: string;
   path: string;
   icon: React.ReactNode;
   badge?: number;
+  teacherOnly?: boolean;
 }
 
 const DashboardSidebar = () => {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { profile, isTeacher, isAdmin, signOut } = useAuth();
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate("/");
+  };
 
   const mainLinks: SidebarLink[] = [
     {
@@ -33,19 +43,16 @@ const DashboardSidebar = () => {
       name: "Mata Kuliah",
       path: "/dashboard/courses",
       icon: <BookOpen className="w-5 h-5" />,
-      badge: 8,
     },
     {
       name: "Ujian CBT",
       path: "/dashboard/exams",
       icon: <ClipboardList className="w-5 h-5" />,
-      badge: 2,
     },
     {
       name: "Tugas",
       path: "/dashboard/assignments",
       icon: <FileText className="w-5 h-5" />,
-      badge: 5,
     },
     {
       name: "Jadwal",
@@ -59,11 +66,27 @@ const DashboardSidebar = () => {
     },
   ];
 
+  const teacherLinks: SidebarLink[] = [
+    {
+      name: "Buat Mata Kuliah",
+      path: "/dashboard/courses/create",
+      icon: <PlusCircle className="w-5 h-5" />,
+      teacherOnly: true,
+    },
+    {
+      name: "Buat Ujian",
+      path: "/dashboard/exams/create",
+      icon: <PlusCircle className="w-5 h-5" />,
+      teacherOnly: true,
+    },
+  ];
+
   const secondaryLinks: SidebarLink[] = [
     {
       name: "Mahasiswa",
       path: "/dashboard/students",
       icon: <Users className="w-5 h-5" />,
+      teacherOnly: true,
     },
     {
       name: "Pengaturan",
@@ -74,6 +97,8 @@ const DashboardSidebar = () => {
 
   const NavLink = ({ link }: { link: SidebarLink }) => {
     const isActive = location.pathname === link.path;
+
+    if (link.teacherOnly && !isTeacher && !isAdmin) return null;
 
     return (
       <Link
@@ -105,6 +130,12 @@ const DashboardSidebar = () => {
     );
   };
 
+  const getInitials = () => {
+    const first = profile?.first_name?.[0] || "";
+    const last = profile?.last_name?.[0] || "";
+    return (first + last).toUpperCase() || "U";
+  };
+
   return (
     <aside className="w-64 bg-sidebar h-screen fixed left-0 top-0 flex flex-col">
       {/* Logo */}
@@ -133,6 +164,17 @@ const DashboardSidebar = () => {
           <NavLink key={link.path} link={link} />
         ))}
 
+        {(isTeacher || isAdmin) && (
+          <div className="pt-6">
+            <p className="text-xs font-semibold text-sidebar-foreground/40 uppercase tracking-wider px-4 mb-3">
+              Kelola
+            </p>
+            {teacherLinks.map((link) => (
+              <NavLink key={link.path} link={link} />
+            ))}
+          </div>
+        )}
+
         <div className="pt-6">
           <p className="text-xs font-semibold text-sidebar-foreground/40 uppercase tracking-wider px-4 mb-3">
             Lainnya
@@ -148,16 +190,21 @@ const DashboardSidebar = () => {
         <div className="flex items-center gap-3 px-4 py-3">
           <div className="w-10 h-10 rounded-full bg-sidebar-primary/20 flex items-center justify-center">
             <span className="text-sm font-semibold text-sidebar-primary">
-              AS
+              {getInitials()}
             </span>
           </div>
           <div className="flex-1">
             <p className="text-sm font-medium text-sidebar-foreground">
-              Ahmad Santoso
+              {profile?.first_name} {profile?.last_name}
             </p>
-            <p className="text-xs text-sidebar-foreground/60">Mahasiswa</p>
+            <p className="text-xs text-sidebar-foreground/60">
+              {isAdmin ? "Admin" : isTeacher ? "Dosen/Guru" : "Mahasiswa"}
+            </p>
           </div>
-          <button className="p-2 rounded-lg hover:bg-sidebar-accent transition-colors">
+          <button
+            onClick={handleSignOut}
+            className="p-2 rounded-lg hover:bg-sidebar-accent transition-colors"
+          >
             <LogOut className="w-4 h-4 text-sidebar-foreground/60" />
           </button>
         </div>

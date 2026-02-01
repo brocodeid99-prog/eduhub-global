@@ -1,108 +1,150 @@
 import DashboardSidebar from "@/components/layout/DashboardSidebar";
-import { BookOpen, Clock, Users, Star, Search, Filter } from "lucide-react";
+import {
+  BookOpen,
+  Users,
+  Star,
+  Search,
+  Filter,
+  Plus,
+  Loader2,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Link } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { useState } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 
 const Courses = () => {
-  const courses = [
-    {
-      id: 1,
-      title: "Algoritma & Pemrograman",
-      instructor: "Dr. Budi Santoso",
-      progress: 75,
-      totalModules: 12,
-      completedModules: 9,
-      duration: "3 jam 45 menit",
-      students: 156,
-      rating: 4.8,
-      image: "🖥️",
+  const { profile, isTeacher, isAdmin } = useAuth();
+  const queryClient = useQueryClient();
+  const [search, setSearch] = useState("");
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [newCourse, setNewCourse] = useState({ title: "", description: "" });
+
+  // Fetch all published courses
+  const { data: courses, isLoading } = useQuery({
+    queryKey: ["courses"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("courses")
+        .select(`
+          *,
+          owner:profiles(first_name, last_name),
+          enrollments:enrollments(count),
+          modules:modules(count)
+        `)
+        .or(`is_published.eq.true,owner_id.eq.${profile?.id || "00000000-0000-0000-0000-000000000000"}`);
+
+      if (error) throw error;
+      return data;
     },
-    {
-      id: 2,
-      title: "Basis Data",
-      instructor: "Prof. Rina Wijaya",
-      progress: 60,
-      totalModules: 10,
-      completedModules: 6,
-      duration: "4 jam 20 menit",
-      students: 142,
-      rating: 4.7,
-      image: "🗄️",
+    enabled: !!profile,
+  });
+
+  // Get user's enrollments
+  const { data: myEnrollments } = useQuery({
+    queryKey: ["my-enrollments", profile?.id],
+    queryFn: async () => {
+      if (!profile?.id) return [];
+      const { data, error } = await supabase
+        .from("enrollments")
+        .select("course_id")
+        .eq("student_id", profile.id);
+
+      if (error) throw error;
+      return data.map((e) => e.course_id);
     },
-    {
-      id: 3,
-      title: "Jaringan Komputer",
-      instructor: "Dr. Ahmad Fauzi",
-      progress: 45,
-      totalModules: 15,
-      completedModules: 7,
-      duration: "5 jam 10 menit",
-      students: 98,
-      rating: 4.5,
-      image: "🌐",
+    enabled: !!profile?.id,
+  });
+
+  // Create course mutation
+  const createCourse = useMutation({
+    mutationFn: async (courseData: { title: string; description: string }) => {
+      if (!profile?.id) throw new Error("Not authenticated");
+
+      const { data, error } = await supabase
+        .from("courses")
+        .insert({
+          title: courseData.title,
+          description: courseData.description,
+          owner_id: profile.id,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
     },
-    {
-      id: 4,
-      title: "Pemrograman Web",
-      instructor: "Ir. Siti Nurhaliza",
-      progress: 90,
-      totalModules: 8,
-      completedModules: 7,
-      duration: "2 jam 30 menit",
-      students: 203,
-      rating: 4.9,
-      image: "💻",
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["courses"] });
+      toast.success("Mata kuliah berhasil dibuat!");
+      setIsCreateOpen(false);
+      setNewCourse({ title: "", description: "" });
     },
-    {
-      id: 5,
-      title: "Matematika Diskrit",
-      instructor: "Prof. Joko Widodo",
-      progress: 30,
-      totalModules: 14,
-      completedModules: 4,
-      duration: "6 jam 15 menit",
-      students: 87,
-      rating: 4.3,
-      image: "📐",
+    onError: (error: any) => {
+      toast.error(error.message || "Gagal membuat mata kuliah");
     },
-    {
-      id: 6,
-      title: "Sistem Operasi",
-      instructor: "Dr. Maya Putri",
-      progress: 55,
-      totalModules: 11,
-      completedModules: 6,
-      duration: "4 jam 45 menit",
-      students: 124,
-      rating: 4.6,
-      image: "⚙️",
+  });
+
+  // Enroll mutation
+  const enrollCourse = useMutation({
+    mutationFn: async (courseId: string) => {
+      if (!profile?.id) throw new Error("Not authenticated");
+
+      const { error } = await supabase.from("enrollments").insert({
+        course_id: courseId,
+        student_id: profile.id,
+      });
+
+      if (error) throw error;
     },
-    {
-      id: 7,
-      title: "Kecerdasan Buatan",
-      instructor: "Prof. Andi Pratama",
-      progress: 20,
-      totalModules: 16,
-      completedModules: 3,
-      duration: "7 jam 30 menit",
-      students: 178,
-      rating: 4.8,
-      image: "🤖",
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["my-enrollments"] });
+      queryClient.invalidateQueries({ queryKey: ["courses"] });
+      toast.success("Berhasil mendaftar mata kuliah!");
     },
-    {
-      id: 8,
-      title: "Keamanan Siber",
-      instructor: "Dr. Dewi Lestari",
-      progress: 0,
-      totalModules: 9,
-      completedModules: 0,
-      duration: "3 jam 15 menit",
-      students: 65,
-      rating: 4.4,
-      image: "🔒",
+    onError: (error: any) => {
+      toast.error(error.message || "Gagal mendaftar");
     },
-  ];
+  });
+
+  const handleCreateCourse = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newCourse.title.trim()) {
+      toast.error("Judul mata kuliah wajib diisi");
+      return;
+    }
+    createCourse.mutate(newCourse);
+  };
+
+  const filteredCourses = courses?.filter((course: any) =>
+    course.title.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const isEnrolled = (courseId: string) => myEnrollments?.includes(courseId);
+  const isOwner = (ownerId: string) => ownerId === profile?.id;
+
+  const courseEmojis = ["📚", "💻", "🔬", "📐", "🎨", "🌐", "⚙️", "📊"];
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -113,20 +155,79 @@ const Courses = () => {
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-2xl font-bold text-foreground mb-2">
-              Mata Kuliah Saya
+              {isTeacher || isAdmin ? "Kelola Mata Kuliah" : "Mata Kuliah"}
             </h1>
             <p className="text-muted-foreground">
-              Kelola dan akses semua mata kuliah yang Anda ikuti
+              {isTeacher || isAdmin
+                ? "Buat dan kelola mata kuliah Anda"
+                : "Jelajahi dan ikuti mata kuliah yang tersedia"}
             </p>
           </div>
-          <Button variant="hero">+ Tambah Mata Kuliah</Button>
+          {(isTeacher || isAdmin) && (
+            <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+              <DialogTrigger asChild>
+                <Button variant="hero">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Buat Mata Kuliah
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Buat Mata Kuliah Baru</DialogTitle>
+                </DialogHeader>
+                <form onSubmit={handleCreateCourse} className="space-y-4 mt-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="title">Judul Mata Kuliah</Label>
+                    <Input
+                      id="title"
+                      placeholder="Contoh: Algoritma & Pemrograman"
+                      value={newCourse.title}
+                      onChange={(e) =>
+                        setNewCourse({ ...newCourse, title: e.target.value })
+                      }
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="description">Deskripsi</Label>
+                    <Textarea
+                      id="description"
+                      placeholder="Deskripsi mata kuliah..."
+                      value={newCourse.description}
+                      onChange={(e) =>
+                        setNewCourse({ ...newCourse, description: e.target.value })
+                      }
+                      rows={4}
+                    />
+                  </div>
+                  <Button
+                    type="submit"
+                    variant="hero"
+                    className="w-full"
+                    disabled={createCourse.isPending}
+                  >
+                    {createCourse.isPending ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      "Buat Mata Kuliah"
+                    )}
+                  </Button>
+                </form>
+              </DialogContent>
+            </Dialog>
+          )}
         </div>
 
         {/* Search & Filter */}
         <div className="flex gap-4 mb-8">
           <div className="relative flex-1 max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-            <Input placeholder="Cari mata kuliah..." className="pl-10 h-11" />
+            <Input
+              placeholder="Cari mata kuliah..."
+              className="pl-10 h-11"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
           </div>
           <Button variant="outline" className="h-11">
             <Filter className="w-4 h-4 mr-2" />
@@ -135,65 +236,98 @@ const Courses = () => {
         </div>
 
         {/* Courses Grid */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {courses.map((course) => (
-            <Link
-              key={course.id}
-              to={`/dashboard/courses/${course.id}`}
-              className="group bg-card rounded-xl border border-border overflow-hidden hover:shadow-card-hover hover:border-primary/50 transition-all duration-300"
-            >
-              {/* Course Image */}
-              <div className="h-32 bg-gradient-primary flex items-center justify-center text-5xl">
-                {course.image}
-              </div>
+        {filteredCourses && filteredCourses.length > 0 ? (
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {filteredCourses.map((course: any, index: number) => (
+              <div
+                key={course.id}
+                className="group bg-card rounded-xl border border-border overflow-hidden hover:shadow-card-hover hover:border-primary/50 transition-all duration-300"
+              >
+                {/* Course Image */}
+                <div className="h-32 bg-gradient-primary flex items-center justify-center text-5xl">
+                  {courseEmojis[index % courseEmojis.length]}
+                </div>
 
-              {/* Course Content */}
-              <div className="p-5">
-                <h3 className="font-semibold text-foreground mb-1 group-hover:text-primary transition-colors">
-                  {course.title}
-                </h3>
-                <p className="text-sm text-muted-foreground mb-4">
-                  {course.instructor}
-                </p>
-
-                {/* Progress */}
-                <div className="mb-4">
-                  <div className="flex items-center justify-between text-sm mb-1">
-                    <span className="text-muted-foreground">Progress</span>
-                    <span className="font-medium text-foreground">
-                      {course.progress}%
-                    </span>
+                {/* Course Content */}
+                <div className="p-5">
+                  <div className="flex items-start justify-between mb-2">
+                    <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors line-clamp-2">
+                      {course.title}
+                    </h3>
+                    {isOwner(course.owner_id) && (
+                      <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full">
+                        Milik Anda
+                      </span>
+                    )}
                   </div>
-                  <div className="w-full bg-muted rounded-full h-2">
-                    <div
-                      className="bg-gradient-primary h-2 rounded-full transition-all duration-500"
-                      style={{ width: `${course.progress}%` }}
-                    />
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {course.completedModules}/{course.totalModules} modul selesai
+                  <p className="text-sm text-muted-foreground mb-4">
+                    {course.owner?.first_name} {course.owner?.last_name}
                   </p>
-                </div>
 
-                {/* Stats */}
-                <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <div className="flex items-center gap-1">
-                    <Clock className="w-3 h-3" />
-                    <span>{course.duration}</span>
+                  {course.description && (
+                    <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
+                      {course.description}
+                    </p>
+                  )}
+
+                  {/* Stats */}
+                  <div className="flex items-center justify-between text-xs text-muted-foreground mb-4">
+                    <div className="flex items-center gap-1">
+                      <BookOpen className="w-3 h-3" />
+                      <span>{course.modules?.[0]?.count || 0} modul</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Users className="w-3 h-3" />
+                      <span>{course.enrollments?.[0]?.count || 0} siswa</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Star className="w-3 h-3 fill-warning text-warning" />
+                      <span>4.5</span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1">
-                    <Users className="w-3 h-3" />
-                    <span>{course.students}</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Star className="w-3 h-3 fill-warning text-warning" />
-                    <span>{course.rating}</span>
-                  </div>
+
+                  {/* Action Button */}
+                  {isOwner(course.owner_id) ? (
+                    <Button variant="outline" className="w-full" asChild>
+                      <Link to={`/dashboard/courses/${course.id}`}>
+                        Kelola
+                      </Link>
+                    </Button>
+                  ) : isEnrolled(course.id) ? (
+                    <Button variant="success" className="w-full" disabled>
+                      Sudah Terdaftar
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="hero"
+                      className="w-full"
+                      onClick={() => enrollCourse.mutate(course.id)}
+                      disabled={enrollCourse.isPending}
+                    >
+                      {enrollCourse.isPending ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        "Daftar Sekarang"
+                      )}
+                    </Button>
+                  )}
                 </div>
               </div>
-            </Link>
-          ))}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-16">
+            <BookOpen className="w-16 h-16 mx-auto text-muted-foreground/50 mb-4" />
+            <h3 className="text-lg font-medium text-foreground mb-2">
+              Belum ada mata kuliah
+            </h3>
+            <p className="text-muted-foreground">
+              {isTeacher || isAdmin
+                ? "Mulai dengan membuat mata kuliah pertama Anda"
+                : "Mata kuliah akan muncul di sini"}
+            </p>
+          </div>
+        )}
       </main>
     </div>
   );

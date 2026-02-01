@@ -7,127 +7,191 @@ import {
   Clock,
   Flag,
   Send,
+  Loader2,
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+
+interface QuestionOption {
+  id: string;
+  text: string;
+}
+
+interface Question {
+  id: string;
+  question_text: string;
+  question_type: string;
+  options: QuestionOption[] | null;
+  points: number;
+  sort_order: number;
+}
 
 const Exam = () => {
+  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { profile } = useAuth();
   const [currentQuestion, setCurrentQuestion] = useState(0);
-  const [answers, setAnswers] = useState<{ [key: number]: string }>({});
-  const [flagged, setFlagged] = useState<Set<number>>(new Set());
-  const [timeLeft, setTimeLeft] = useState(7200); // 2 hours in seconds
+  const [answers, setAnswers] = useState<{ [key: string]: string }>({});
+  const [flagged, setFlagged] = useState<Set<string>>(new Set());
+  const [timeLeft, setTimeLeft] = useState(0);
   const [showSubmitDialog, setShowSubmitDialog] = useState(false);
+  const [attemptId, setAttemptId] = useState<string | null>(null);
 
-  const questions = [
-    {
-      id: 1,
-      text: "Apa output dari kode berikut?\n\nfor i in range(5):\n    print(i, end=' ')",
-      options: [
-        { id: "a", text: "1 2 3 4 5" },
-        { id: "b", text: "0 1 2 3 4" },
-        { id: "c", text: "0 1 2 3 4 5" },
-        { id: "d", text: "1 2 3 4" },
-      ],
+  // Fetch exam details
+  const { data: exam, isLoading: loadingExam } = useQuery({
+    queryKey: ["exam", id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("exams")
+        .select("*, course:courses(title)")
+        .eq("id", id)
+        .single();
+
+      if (error) throw error;
+      return data;
     },
-    {
-      id: 2,
-      text: "Manakah yang merupakan tipe data primitif dalam Python?",
-      options: [
-        { id: "a", text: "list" },
-        { id: "b", text: "dictionary" },
-        { id: "c", text: "integer" },
-        { id: "d", text: "set" },
-      ],
+    enabled: !!id,
+  });
+
+  // Fetch questions
+  const { data: questions, isLoading: loadingQuestions } = useQuery({
+    queryKey: ["exam-questions", id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("questions")
+        .select("*")
+        .eq("exam_id", id)
+        .order("sort_order", { ascending: true });
+
+      if (error) throw error;
+      // Parse options from JSON
+      return data.map((q) => ({
+        id: q.id,
+        question_text: q.question_text,
+        question_type: q.question_type,
+        points: q.points,
+        sort_order: q.sort_order,
+        options: Array.isArray(q.options) ? (q.options as unknown as QuestionOption[]) : null,
+      })) as Question[];
     },
-    {
-      id: 3,
-      text: "Apa fungsi dari keyword 'def' dalam Python?",
-      options: [
-        { id: "a", text: "Mendefinisikan variabel" },
-        { id: "b", text: "Mendefinisikan fungsi" },
-        { id: "c", text: "Mendefinisikan class" },
-        { id: "d", text: "Mendefinisikan modul" },
-      ],
+    enabled: !!id,
+  });
+
+  // Create or get existing attempt
+  const createAttempt = useMutation({
+    mutationFn: async () => {
+      if (!profile?.id || !id) throw new Error("Missing data");
+
+      // Check for existing in-progress attempt
+      const { data: existing } = await supabase
+        .from("exam_attempts")
+        .select("id, started_at")
+        .eq("exam_id", id)
+        .eq("student_id", profile.id)
+        .eq("status", "in_progress")
+        .maybeSingle();
+
+      if (existing) {
+        return existing;
+      }
+
+      // Create new attempt
+      const { data, error } = await supabase
+        .from("exam_attempts")
+        .insert({
+          exam_id: id,
+          student_id: profile.id,
+          status: "in_progress",
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
     },
-    {
-      id: 4,
-      text: "Bagaimana cara mengakses elemen terakhir dari list dalam Python?",
-      options: [
-        { id: "a", text: "list[0]" },
-        { id: "b", text: "list[-1]" },
-        { id: "c", text: "list[last]" },
-        { id: "d", text: "list.last()" },
-      ],
+    onSuccess: (data) => {
+      setAttemptId(data.id);
+      // Calculate remaining time based on when attempt started
+      if (exam?.duration_minutes) {
+        const startedAt = new Date(data.started_at).getTime();
+        const endTime = startedAt + exam.duration_minutes * 60 * 1000;
+        const remaining = Math.max(0, Math.floor((endTime - Date.now()) / 1000));
+        setTimeLeft(remaining);
+      }
     },
-    {
-      id: 5,
-      text: "Apa perbedaan antara '==' dan 'is' dalam Python?",
-      options: [
-        { id: "a", text: "Tidak ada perbedaan" },
-        { id: "b", text: "'==' membandingkan nilai, 'is' membandingkan identitas objek" },
-        { id: "c", text: "'==' membandingkan identitas, 'is' membandingkan nilai" },
-        { id: "d", text: "'is' hanya untuk string" },
-      ],
+    onError: (error: any) => {
+      toast.error(error.message || "Gagal memulai ujian");
+      navigate("/dashboard/exams");
     },
-    {
-      id: 6,
-      text: "Manakah yang bukan merupakan struktur data built-in dalam Python?",
-      options: [
-        { id: "a", text: "List" },
-        { id: "b", text: "Tuple" },
-        { id: "c", text: "Array" },
-        { id: "d", text: "Dictionary" },
-      ],
+  });
+
+  // Submit exam mutation
+  const submitExam = useMutation({
+    mutationFn: async () => {
+      if (!attemptId || !questions) throw new Error("Missing data");
+
+      // Save all answers
+      const answersToSave = questions.map((q) => ({
+        attempt_id: attemptId,
+        question_id: q.id,
+        answer: answers[q.id] || null,
+        is_correct: answers[q.id] === (q.options ? q.options.find(o => o.id === answers[q.id])?.id : null) ? 
+          answers[q.id] === q.options?.find(o => o.text === "correct")?.id : null,
+      }));
+
+      // Upsert answers
+      for (const answer of answersToSave) {
+        await supabase
+          .from("student_answers")
+          .upsert(answer, { onConflict: "attempt_id,question_id" });
+      }
+
+      // Calculate score (simplified - just counting answered questions)
+      const answeredCount = Object.keys(answers).length;
+      const totalPoints = questions.reduce((sum, q) => sum + q.points, 0);
+      const score = (answeredCount / questions.length) * totalPoints;
+
+      // Update attempt status
+      const { error } = await supabase
+        .from("exam_attempts")
+        .update({
+          status: "submitted",
+          submitted_at: new Date().toISOString(),
+          score: score,
+          time_spent_seconds: exam?.duration_minutes ? exam.duration_minutes * 60 - timeLeft : 0,
+        })
+        .eq("id", attemptId);
+
+      if (error) throw error;
     },
-    {
-      id: 7,
-      text: "Apa output dari: print(type([]))?",
-      options: [
-        { id: "a", text: "<class 'list'>" },
-        { id: "b", text: "<class 'array'>" },
-        { id: "c", text: "list" },
-        { id: "d", text: "[]" },
-      ],
+    onSuccess: () => {
+      toast.success("Ujian berhasil dikumpulkan!");
+      navigate("/dashboard/exams");
     },
-    {
-      id: 8,
-      text: "Bagaimana cara menambahkan elemen ke akhir list?",
-      options: [
-        { id: "a", text: "list.add(element)" },
-        { id: "b", text: "list.append(element)" },
-        { id: "c", text: "list.insert(element)" },
-        { id: "d", text: "list.push(element)" },
-      ],
+    onError: (error: any) => {
+      toast.error(error.message || "Gagal mengumpulkan ujian");
     },
-    {
-      id: 9,
-      text: "Apa fungsi dari 'break' dalam loop?",
-      options: [
-        { id: "a", text: "Melanjutkan ke iterasi berikutnya" },
-        { id: "b", text: "Menghentikan loop" },
-        { id: "c", text: "Mengulang loop dari awal" },
-        { id: "d", text: "Mengembalikan nilai" },
-      ],
-    },
-    {
-      id: 10,
-      text: "Manakah yang merupakan cara yang benar untuk membuat dictionary?",
-      options: [
-        { id: "a", text: "d = []" },
-        { id: "b", text: "d = ()" },
-        { id: "c", text: "d = {}" },
-        { id: "d", text: "d = <>" },
-      ],
-    },
-  ];
+  });
+
+  // Initialize attempt when exam loads
+  useEffect(() => {
+    if (exam && profile?.id && !attemptId) {
+      createAttempt.mutate();
+    }
+  }, [exam, profile?.id]);
 
   // Timer effect
   useEffect(() => {
+    if (timeLeft <= 0) return;
+
     const timer = setInterval(() => {
       setTimeLeft((prev) => {
         if (prev <= 1) {
           clearInterval(timer);
-          handleSubmit();
+          submitExam.mutate();
           return 0;
         }
         return prev - 1;
@@ -135,7 +199,7 @@ const Exam = () => {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, []);
+  }, [timeLeft]);
 
   const formatTime = (seconds: number) => {
     const hours = Math.floor(seconds / 3600);
@@ -146,11 +210,11 @@ const Exam = () => {
       .padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   };
 
-  const handleAnswer = (questionId: number, optionId: string) => {
+  const handleAnswer = (questionId: string, optionId: string) => {
     setAnswers((prev) => ({ ...prev, [questionId]: optionId }));
   };
 
-  const toggleFlag = (questionId: number) => {
+  const toggleFlag = (questionId: string) => {
     setFlagged((prev) => {
       const newFlagged = new Set(prev);
       if (newFlagged.has(questionId)) {
@@ -163,11 +227,36 @@ const Exam = () => {
   };
 
   const handleSubmit = () => {
-    navigate("/dashboard/exams");
+    submitExam.mutate();
   };
+
+  if (loadingExam || loadingQuestions || createAttempt.isPending) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-4" />
+          <p className="text-muted-foreground">Memuat ujian...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!exam || !questions || questions.length === 0) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-muted-foreground mb-4">Ujian tidak ditemukan atau belum ada soal</p>
+          <Button variant="outline" onClick={() => navigate("/dashboard/exams")}>
+            Kembali
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   const answeredCount = Object.keys(answers).length;
   const question = questions[currentQuestion];
+  const options = question.options as { id: string; text: string }[] | null;
 
   return (
     <div className="min-h-screen bg-background flex">
@@ -176,9 +265,7 @@ const Exam = () => {
         {/* Header */}
         <header className="bg-card border-b border-border px-6 py-4 flex items-center justify-between">
           <div>
-            <h1 className="font-semibold text-foreground">
-              UTS Algoritma & Pemrograman
-            </h1>
+            <h1 className="font-semibold text-foreground">{exam.title}</h1>
             <p className="text-sm text-muted-foreground">
               Soal {currentQuestion + 1} dari {questions.length}
             </p>
@@ -202,9 +289,16 @@ const Exam = () => {
             <Button
               variant="hero"
               onClick={() => setShowSubmitDialog(true)}
+              disabled={submitExam.isPending}
             >
-              <Send className="w-4 h-4 mr-2" />
-              Selesai
+              {submitExam.isPending ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <>
+                  <Send className="w-4 h-4 mr-2" />
+                  Selesai
+                </>
+              )}
             </Button>
           </div>
         </header>
@@ -216,7 +310,7 @@ const Exam = () => {
             <div className="bg-card rounded-xl border border-border p-8 mb-6">
               <div className="flex items-start justify-between mb-6">
                 <span className="text-sm font-medium text-primary bg-primary/10 px-3 py-1 rounded-full">
-                  Soal {currentQuestion + 1}
+                  Soal {currentQuestion + 1} ({question.points} poin)
                 </span>
                 <button
                   onClick={() => toggleFlag(question.id)}
@@ -231,36 +325,38 @@ const Exam = () => {
               </div>
 
               <p className="text-lg text-foreground whitespace-pre-line mb-8">
-                {question.text}
+                {question.question_text}
               </p>
 
               {/* Options */}
-              <div className="space-y-3">
-                {question.options.map((option) => (
-                  <button
-                    key={option.id}
-                    onClick={() => handleAnswer(question.id, option.id)}
-                    className={`w-full p-4 rounded-lg border-2 text-left transition-all ${
-                      answers[question.id] === option.id
-                        ? "border-primary bg-primary/5"
-                        : "border-border hover:border-primary/50"
-                    }`}
-                  >
-                    <div className="flex items-center gap-4">
-                      <span
-                        className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold ${
-                          answers[question.id] === option.id
-                            ? "bg-primary text-primary-foreground"
-                            : "bg-muted text-muted-foreground"
-                        }`}
-                      >
-                        {option.id.toUpperCase()}
-                      </span>
-                      <span className="text-foreground">{option.text}</span>
-                    </div>
-                  </button>
-                ))}
-              </div>
+              {options && (
+                <div className="space-y-3">
+                  {options.map((option) => (
+                    <button
+                      key={option.id}
+                      onClick={() => handleAnswer(question.id, option.id)}
+                      className={`w-full p-4 rounded-lg border-2 text-left transition-all ${
+                        answers[question.id] === option.id
+                          ? "border-primary bg-primary/5"
+                          : "border-border hover:border-primary/50"
+                      }`}
+                    >
+                      <div className="flex items-center gap-4">
+                        <span
+                          className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold ${
+                            answers[question.id] === option.id
+                              ? "bg-primary text-primary-foreground"
+                              : "bg-muted text-muted-foreground"
+                          }`}
+                        >
+                          {option.id.toUpperCase()}
+                        </span>
+                        <span className="text-foreground">{option.text}</span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Navigation */}
@@ -383,8 +479,13 @@ const Exam = () => {
                 variant="hero"
                 className="flex-1"
                 onClick={handleSubmit}
+                disabled={submitExam.isPending}
               >
-                Kumpulkan
+                {submitExam.isPending ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  "Kumpulkan"
+                )}
               </Button>
             </div>
           </div>
