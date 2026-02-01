@@ -10,6 +10,7 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
 import Courses from "./pages/Courses";
+import CourseDetail from "./pages/CourseDetail";
 import ExamList from "./pages/ExamList";
 import Exam from "./pages/Exam";
 import ExamQuestions from "./pages/ExamQuestions";
@@ -42,6 +43,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Courses />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/dashboard/courses/:courseId"
+              element={
+                <ProtectedRoute>
+                  <CourseDetail />
                 </ProtectedRoute>
               }
             />
