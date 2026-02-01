@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -16,6 +16,17 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import {
   Select,
   SelectContent,
@@ -73,6 +84,7 @@ interface Module {
 
 const CourseDetail = () => {
   const { courseId } = useParams();
+  const navigate = useNavigate();
   const { profile, isTeacher, isAdmin } = useAuth();
   const queryClient = useQueryClient();
   const [isModuleOpen, setIsModuleOpen] = useState(false);
@@ -197,6 +209,83 @@ const CourseDetail = () => {
     },
     onError: (error: any) => {
       toast.error(error.message || "Gagal memperbarui mata kuliah");
+    },
+  });
+
+  // Delete course mutation
+  const deleteCourse = useMutation({
+    mutationFn: async () => {
+      // First delete all related data
+      // Delete materials for all modules in this course
+      const { data: moduleIds } = await supabase
+        .from("modules")
+        .select("id")
+        .eq("course_id", courseId);
+
+      if (moduleIds && moduleIds.length > 0) {
+        const ids = moduleIds.map((m) => m.id);
+        
+        // Delete materials
+        await supabase
+          .from("materials")
+          .delete()
+          .in("module_id", ids);
+      }
+
+      // Delete modules
+      await supabase
+        .from("modules")
+        .delete()
+        .eq("course_id", courseId);
+
+      // Delete enrollments
+      await supabase
+        .from("enrollments")
+        .delete()
+        .eq("course_id", courseId);
+
+      // Delete exams and related data
+      const { data: examIds } = await supabase
+        .from("exams")
+        .select("id")
+        .eq("course_id", courseId);
+
+      if (examIds && examIds.length > 0) {
+        const ids = examIds.map((e) => e.id);
+        
+        // Delete exam attempts
+        await supabase
+          .from("exam_attempts")
+          .delete()
+          .in("exam_id", ids);
+
+        // Delete questions
+        await supabase
+          .from("questions")
+          .delete()
+          .in("exam_id", ids);
+      }
+
+      await supabase
+        .from("exams")
+        .delete()
+        .eq("course_id", courseId);
+
+      // Finally delete the course
+      const { error } = await supabase
+        .from("courses")
+        .delete()
+        .eq("id", courseId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["courses"] });
+      toast.success("Mata kuliah berhasil dihapus!");
+      navigate("/dashboard/courses");
+    },
+    onError: (error: any) => {
+      toast.error(error.message || "Gagal menghapus mata kuliah");
     },
   });
 
@@ -462,22 +551,56 @@ const CourseDetail = () => {
           </div>
           
           {canManage && (
-            <div className="flex items-center gap-3 bg-card border border-border rounded-lg px-4 py-2">
-              <div className="flex items-center gap-2">
-                {course.is_published ? (
-                  <Globe className="w-4 h-4 text-success" />
-                ) : (
-                  <Lock className="w-4 h-4 text-muted-foreground" />
-                )}
-                <span className="text-sm font-medium">
-                  {course.is_published ? "Publik" : "Draft"}
-                </span>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 bg-card border border-border rounded-lg px-4 py-2">
+                <div className="flex items-center gap-2">
+                  {course.is_published ? (
+                    <Globe className="w-4 h-4 text-success" />
+                  ) : (
+                    <Lock className="w-4 h-4 text-muted-foreground" />
+                  )}
+                  <span className="text-sm font-medium">
+                    {course.is_published ? "Publik" : "Draft"}
+                  </span>
+                </div>
+                <Switch
+                  checked={course.is_published || false}
+                  onCheckedChange={(checked) => togglePublish.mutate(checked)}
+                  disabled={togglePublish.isPending}
+                />
               </div>
-              <Switch
-                checked={course.is_published || false}
-                onCheckedChange={(checked) => togglePublish.mutate(checked)}
-                disabled={togglePublish.isPending}
-              />
+              
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="destructive" size="sm">
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Hapus
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Hapus Mata Kuliah?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Apakah Anda yakin ingin menghapus mata kuliah <strong>"{course.title}"</strong>? 
+                      Tindakan ini akan menghapus semua modul, materi, ujian, dan data pendaftaran mahasiswa. 
+                      Tindakan ini tidak dapat dibatalkan.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Batal</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={() => deleteCourse.mutate()}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      disabled={deleteCourse.isPending}
+                    >
+                      {deleteCourse.isPending ? (
+                        <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                      ) : null}
+                      Ya, Hapus
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </div>
           )}
         </div>
