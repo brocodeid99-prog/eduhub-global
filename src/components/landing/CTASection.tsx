@@ -23,7 +23,7 @@ const CTASection = () => {
           </h2>
           <p className="text-lg text-primary-foreground/80 mb-8 max-w-2xl mx-auto">
             Bergabung dengan ribuan institusi pendidikan yang telah menggunakan
-            EduLearn untuk transformasi digital pembelajaran mereka.
+            BroCodeID untuk transformasi digital pembelajaran mereka.
           </p>
 
           {/* Benefits */}

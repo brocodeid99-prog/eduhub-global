@@ -5,7 +5,6 @@ import {
   Users,
   Settings,
   LogOut,
-  GraduationCap,
   ClipboardList,
   BarChart3,
   Calendar,
@@ -14,6 +13,7 @@ import {
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
+import logoImage from "@/assets/logo-brocode.jpeg";
 
 interface SidebarLink {
   name: string;
@@ -141,17 +141,7 @@ const DashboardSidebar = () => {
       {/* Logo */}
       <div className="p-6 border-b border-sidebar-border">
         <Link to="/dashboard" className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-sidebar-primary rounded-lg flex items-center justify-center">
-            <GraduationCap className="w-6 h-6 text-sidebar-primary-foreground" />
-          </div>
-          <div>
-            <span className="text-lg font-bold text-sidebar-foreground">
-              EduLearn
-            </span>
-            <p className="text-xs text-sidebar-foreground/60">
-              Learning Platform
-            </p>
-          </div>
+          <img src={logoImage} alt="BroCodeID Logo" className="h-10 w-auto" />
         </Link>
       </div>
 
