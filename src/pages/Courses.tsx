@@ -35,7 +35,7 @@ const Courses = () => {
 
   // Fetch all published courses
   const { data: courses, isLoading } = useQuery({
-    queryKey: ["courses"],
+    queryKey: ["courses", profile?.id],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("courses")
@@ -50,7 +50,7 @@ const Courses = () => {
       if (error) throw error;
       return data;
     },
-    enabled: !!profile,
+    enabled: !!profile?.id,
   });
 
   // Get user's enrollments
