@@ -1,4 +1,4 @@
-import { BookOpen, Eye, EyeOff, Loader2 } from "lucide-react";
+import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -6,6 +6,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import logoImage from "@/assets/logo-brocode.jpeg";
 
 const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -36,10 +37,7 @@ const Login = () => {
         <div className="w-full max-w-md">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2 mb-8">
-            <div className="w-10 h-10 bg-gradient-primary rounded-lg flex items-center justify-center">
-              <BookOpen className="w-6 h-6 text-primary-foreground" />
-            </div>
-            <span className="text-xl font-bold text-foreground">EduLearn</span>
+            <img src={logoImage} alt="BroCodeID Logo" className="h-10 w-auto" />
           </Link>
 
           {/* Header */}
