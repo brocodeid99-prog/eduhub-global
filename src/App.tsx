@@ -16,6 +16,11 @@ import Exam from "./pages/Exam";
 import ExamQuestions from "./pages/ExamQuestions";
 import CreateExam from "./pages/CreateExam";
 import AdminDashboard from "./pages/AdminDashboard";
+import Assignments from "./pages/Assignments";
+import Schedule from "./pages/Schedule";
+import Grades from "./pages/Grades";
+import Students from "./pages/Students";
+import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -92,6 +97,46 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <AdminDashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/dashboard/assignments"
+              element={
+                <ProtectedRoute>
+                  <Assignments />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/dashboard/schedule"
+              element={
+                <ProtectedRoute>
+                  <Schedule />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/dashboard/grades"
+              element={
+                <ProtectedRoute>
+                  <Grades />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/dashboard/students"
+              element={
+                <ProtectedRoute>
+                  <Students />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/dashboard/settings"
+              element={
+                <ProtectedRoute>
+                  <Settings />
                 </ProtectedRoute>
               }
             />
