@@ -239,8 +239,10 @@ const Dashboard = () => {
                         Enrolled {formatDate(enrollment.enrolled_at)}
                       </p>
                     </div>
-                    <Button variant="ghost" size="icon">
-                      <Play className="w-4 h-4" />
+                    <Button variant="ghost" size="icon" asChild>
+                      <Link to={`/dashboard/courses/${enrollment.course?.id}`}>
+                        <Play className="w-4 h-4" />
+                      </Link>
                     </Button>
                   </div>
                 ))
