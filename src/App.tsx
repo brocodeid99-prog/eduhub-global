@@ -12,6 +12,8 @@ import Dashboard from "./pages/Dashboard";
 import Courses from "./pages/Courses";
 import ExamList from "./pages/ExamList";
 import Exam from "./pages/Exam";
+import ExamQuestions from "./pages/ExamQuestions";
+import CreateExam from "./pages/CreateExam";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -56,6 +58,22 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Exam />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/dashboard/exams/:examId/questions"
+              element={
+                <ProtectedRoute>
+                  <ExamQuestions />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/dashboard/exams/create"
+              element={
+                <ProtectedRoute>
+                  <CreateExam />
                 </ProtectedRoute>
               }
             />

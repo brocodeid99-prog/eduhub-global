@@ -7,6 +7,7 @@ import {
   CheckCircle,
   Plus,
   Loader2,
+  Settings,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
@@ -34,6 +35,27 @@ const ExamList = () => {
       if (error) throw error;
       return data;
     },
+  });
+
+  // Fetch teacher's own exams
+  const { data: myExams, isLoading: loadingMyExams } = useQuery({
+    queryKey: ["my-exams", profile?.id],
+    queryFn: async () => {
+      if (!profile?.id) return [];
+
+      const { data, error } = await supabase
+        .from("exams")
+        .select(`
+          *,
+          course:courses!inner(title, owner_id)
+        `)
+        .eq("course.owner_id", profile.id)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!profile?.id && (isTeacher || isAdmin),
   });
 
   // Fetch completed exam attempts
@@ -73,7 +95,7 @@ const ExamList = () => {
     });
   };
 
-  const isLoading = loadingUpcoming || loadingCompleted;
+  const isLoading = loadingUpcoming || loadingCompleted || loadingMyExams;
 
   if (isLoading) {
     return (
@@ -107,6 +129,61 @@ const ExamList = () => {
             </Button>
           )}
         </div>
+
+        {/* My Exams (Teacher Only) */}
+        {(isTeacher || isAdmin) && myExams && myExams.length > 0 && (
+          <div className="mb-10">
+            <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+              <Settings className="w-5 h-5 text-primary" />
+              Ujian Saya
+            </h2>
+
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {myExams.map((exam: any) => (
+                <div
+                  key={exam.id}
+                  className="bg-card rounded-xl border border-border p-6 hover:shadow-card-hover transition-all"
+                >
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
+                      <ClipboardList className="w-6 h-6 text-primary" />
+                    </div>
+                    <span
+                      className={`text-xs font-semibold px-3 py-1 rounded-full uppercase ${
+                        exam.is_published
+                          ? "bg-success/10 text-success"
+                          : "bg-muted text-muted-foreground"
+                      }`}
+                    >
+                      {exam.is_published ? "Published" : "Draft"}
+                    </span>
+                  </div>
+
+                  <h3 className="font-semibold text-foreground mb-1">
+                    {exam.title}
+                  </h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    {exam.course?.title}
+                  </p>
+
+                  <div className="space-y-2 mb-6">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Clock className="w-4 h-4" />
+                      <span>{exam.duration_minutes} menit</span>
+                    </div>
+                  </div>
+
+                  <Button variant="outline" className="w-full" asChild>
+                    <Link to={`/dashboard/exams/${exam.id}/questions`}>
+                      <Settings className="w-4 h-4 mr-2" />
+                      Kelola Soal
+                    </Link>
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Upcoming Exams */}
         <div className="mb-10">
