@@ -62,6 +62,7 @@ import {
 import { toast } from "sonner";
 import { EnrollStudentDialog } from "@/components/course/EnrollStudentDialog";
 import { EnrolledStudentsList } from "@/components/course/EnrolledStudentsList";
+import { MaterialPreview } from "@/components/course/MaterialPreview";
 
 type MaterialType = "text" | "video" | "pdf" | "document";
 
@@ -100,6 +101,7 @@ const CourseDetail = () => {
   const [editCourse, setEditCourse] = useState({ title: "", description: "" });
   const [uploadingFile, setUploadingFile] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewMaterial, setPreviewMaterial] = useState<Material | null>(null);
 
   // Fetch course details
   const { data: course, isLoading: courseLoading } = useQuery({
@@ -895,43 +897,42 @@ const CourseDetail = () => {
                           module.materials.map((material) => (
                             <div
                               key={material.id}
-                              className="flex items-center justify-between p-3 bg-muted/50 rounded-lg"
+                              className="flex items-center justify-between p-3 bg-muted/50 rounded-lg hover:bg-muted transition-colors cursor-pointer group"
+                              onClick={() => setPreviewMaterial(material)}
                             >
                               <div className="flex items-center gap-3">
                                 {getMaterialIcon(material.material_type)}
-                                <span className="text-sm font-medium text-foreground">
+                                <span className="text-sm font-medium text-foreground group-hover:text-primary transition-colors">
                                   {material.title}
                                 </span>
+                                <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded">
+                                  {material.material_type === "text" && "Teks"}
+                                  {material.material_type === "video" && "Video"}
+                                  {material.material_type === "pdf" && "PDF"}
+                                  {material.material_type === "document" && "Dokumen"}
+                                </span>
                               </div>
-                              <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => setPreviewMaterial(material)}
+                                >
+                                  <Eye className="w-4 h-4" />
+                                </Button>
                                 {material.file_url && (
-                                  <>
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      asChild
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    asChild
+                                  >
+                                    <a
+                                      href={material.file_url}
+                                      download
                                     >
-                                      <a
-                                        href={material.file_url}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                      >
-                                        <Eye className="w-4 h-4" />
-                                      </a>
-                                    </Button>
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      asChild
-                                    >
-                                      <a
-                                        href={material.file_url}
-                                        download
-                                      >
-                                        <Download className="w-4 h-4" />
-                                      </a>
-                                    </Button>
-                                  </>
+                                      <Download className="w-4 h-4" />
+                                    </a>
+                                  </Button>
                                 )}
                                 {canManage && (
                                   <Button
@@ -1021,6 +1022,13 @@ const CourseDetail = () => {
             </div>
           </TabsContent>
         </Tabs>
+
+        {/* Material Preview Dialog */}
+        <MaterialPreview
+          material={previewMaterial}
+          open={!!previewMaterial}
+          onClose={() => setPreviewMaterial(null)}
+        />
       </main>
     </div>
   );
