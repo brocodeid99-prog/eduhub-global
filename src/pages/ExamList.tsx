@@ -1,4 +1,4 @@
-import DashboardSidebar from "@/components/layout/DashboardSidebar";
+import DashboardLayout from "@/components/layout/DashboardLayout";
 import {
   ClipboardList,
   Clock,
@@ -106,10 +106,7 @@ const ExamList = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <DashboardSidebar />
-
-      <main className="ml-64 p-8">
+    <DashboardLayout>
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
@@ -322,8 +319,7 @@ const ExamList = () => {
             </div>
           )}
         </div>
-      </main>
-    </div>
+    </DashboardLayout>
   );
 };
 
