@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import DashboardSidebar from "@/components/layout/DashboardSidebar";
+import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -144,11 +144,7 @@ const Schedule = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <DashboardSidebar />
-
-      <main className="ml-64 p-8">
-        {/* Header */}
+    <DashboardLayout>
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-2xl font-bold text-foreground mb-2">Jadwal</h1>
@@ -272,8 +268,7 @@ const Schedule = () => {
             <span className="text-sm text-muted-foreground">Ujian</span>
           </div>
         </div>
-      </main>
-    </div>
+    </DashboardLayout>
   );
 };
 

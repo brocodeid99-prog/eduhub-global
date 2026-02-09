@@ -3,7 +3,7 @@ import { useParams, Link, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import DashboardSidebar from "@/components/layout/DashboardSidebar";
+import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -503,11 +503,7 @@ const CourseDetail = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <DashboardSidebar />
-
-      <main className="ml-64 p-8">
-        {/* Header */}
+    <DashboardLayout>
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-4">
             <Button variant="ghost" size="icon" asChild>
@@ -1029,8 +1025,7 @@ const CourseDetail = () => {
           open={!!previewMaterial}
           onClose={() => setPreviewMaterial(null)}
         />
-      </main>
-    </div>
+    </DashboardLayout>
   );
 };
 

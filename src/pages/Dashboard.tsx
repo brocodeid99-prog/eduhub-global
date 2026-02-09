@@ -1,4 +1,4 @@
-import DashboardSidebar from "@/components/layout/DashboardSidebar";
+import DashboardLayout from "@/components/layout/DashboardLayout";
 import {
   BookOpen,
   Clock,
@@ -11,12 +11,15 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
+import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
 const Dashboard = () => {
   const { profile, isTeacher } = useAuth();
+  const isMobile = useIsMobile();
 
   // Fetch enrolled courses for students
   const { data: enrollments, isLoading: loadingEnrollments } = useQuery({
@@ -203,11 +206,7 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <DashboardSidebar />
-
-      {/* Main Content */}
-      <main className="ml-64 p-8">
+    <DashboardLayout>
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-2xl font-bold text-foreground mb-2">
@@ -388,8 +387,7 @@ const Dashboard = () => {
             </div>
           </div>
         </div>
-      </main>
-    </div>
+    </DashboardLayout>
   );
 };
 

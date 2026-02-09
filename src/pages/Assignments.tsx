@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import DashboardSidebar from "@/components/layout/DashboardSidebar";
+import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -133,10 +133,7 @@ const Assignments = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <DashboardSidebar />
-
-      <main className="ml-64 p-8">
+    <DashboardLayout>
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
@@ -319,8 +316,7 @@ const Assignments = () => {
             </p>
           </div>
         )}
-      </main>
-    </div>
+    </DashboardLayout>
   );
 };
 

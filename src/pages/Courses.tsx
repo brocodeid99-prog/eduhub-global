@@ -1,4 +1,4 @@
-import DashboardSidebar from "@/components/layout/DashboardSidebar";
+import DashboardLayout from "@/components/layout/DashboardLayout";
 import {
   BookOpen,
   Users,
@@ -147,11 +147,7 @@ const Courses = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <DashboardSidebar />
-
-      <main className="ml-64 p-8">
-        {/* Header */}
+    <DashboardLayout>
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-2xl font-bold text-foreground mb-2">
@@ -330,8 +326,7 @@ const Courses = () => {
             </p>
           </div>
         )}
-      </main>
-    </div>
+    </DashboardLayout>
   );
 };
 

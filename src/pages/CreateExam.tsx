@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import DashboardSidebar from "@/components/layout/DashboardSidebar";
+import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -125,21 +125,16 @@ const CreateExam = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background flex">
-        <DashboardSidebar />
-        <main className="flex-1 ml-64 p-8">
-          <div className="flex items-center justify-center h-64">
-            <Loader2 className="w-8 h-8 animate-spin text-primary" />
-          </div>
-        </main>
-      </div>
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      </DashboardLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background flex">
-      <DashboardSidebar />
-      <main className="flex-1 ml-64 p-8">
+    <DashboardLayout>
         {/* Header */}
         <div className="flex items-center gap-4 mb-8">
           <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
@@ -388,8 +383,7 @@ const CreateExam = () => {
             </div>
           </div>
         </form>
-      </main>
-    </div>
+    </DashboardLayout>
   );
 };
 
